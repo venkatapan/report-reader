@@ -31,32 +31,45 @@ export default async function handler(
       const parts: any[] = [];
 
       if (files.file) {
-        const fileData = fs.readFileSync((files.file as any).filepath);
+        const uploadedFile = files.file as any;
+
+        const fileData = fs.readFileSync(uploadedFile.filepath);
         const base64 = fileData.toString("base64");
 
         parts.push({
           inlineData: {
             data: base64,
-            mimeType: (files.file as any).mimetype,
+            mimeType: uploadedFile.mimetype || "application/pdf",
           },
         });
       }
 
       if (fields.text) {
-        parts.push({ text: `User provided text: ${fields.text}` });
+        parts.push({
+          text: `User provided text: ${fields.text}`,
+        });
+      }
+
+      if (parts.length === 0) {
+        return res.status(400).json({ error: "No file or text provided" });
       }
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: {
-          role: "user",
-          parts,
-        },
+        contents: [
+          {
+            role: "user",
+            parts,
+          },
+        ],
       });
 
-      return res.status(200).json({ result: response.text });
+      return res.status(200).json({
+        result: response.text,
+      });
 
     } catch (error: any) {
+      console.error("Gemini Error:", error);
       return res.status(500).json({ error: error.message });
     }
   });
