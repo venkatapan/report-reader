@@ -1,0 +1,5 @@
+{
+  "name": "Report Reader",
+  "description": "A reassuring and simple tool to help non-medical users understand their medical and lab reports using AI.",
+  "requestFramePermissions": []
+}
