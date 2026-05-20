@@ -17,20 +17,8 @@ function App() {
   const handleAnalyze = async (text: string, file: File | null) => {
     setState({ isLoading: true, result: null, error: null });
 
-    // Artificial minimal delay for better UX
-    const startTime = Date.now();
-
     try {
       const result = await analyzeReport(text, file);
-
-      const elapsedTime = Date.now() - startTime;
-      const minDuration = 1500;
-
-      if (elapsedTime < minDuration) {
-        await new Promise(resolve =>
-          setTimeout(resolve, minDuration - elapsedTime)
-        );
-      }
 
       setState({
         isLoading: false,
@@ -58,14 +46,16 @@ function App() {
   };
 
   return (
-    <div
-      className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12"
-      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 12px)' }}
-    >
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
       <DisclaimerModal />
-      <Header />
 
-      <main className="max-w-3xl mx-auto px-4 pt-8">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-50 bg-white">
+        <Header />
+      </div>
+
+      {/* Main Content */}
+      <main className="max-w-3xl mx-auto px-4 pt-24">
         <div className="text-center mb-8">
           <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-3">
             Understand Your Lab Reports
