@@ -15,7 +15,11 @@ function App() {
   });
 
   const handleAnalyze = async (text: string, file: File | null) => {
-    setState({ isLoading: true, result: null, error: null });
+    setState({
+      isLoading: true,
+      result: null,
+      error: null,
+    });
 
     try {
       const result = await analyzeReport(text, file);
@@ -46,16 +50,23 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
+
       <DisclaimerModal />
 
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-50 bg-white">
+      {/* Fixed Header */}
+      <div
+        className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm"
+        style={{
+          paddingTop: 'env(safe-area-inset-top)',
+        }}
+      >
         <Header />
       </div>
 
       {/* Main Content */}
-      <main className="max-w-3xl mx-auto px-4 pt-24">
+      <main className="max-w-3xl mx-auto px-4 pt-32 pb-12">
+
         <div className="text-center mb-8">
           <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mb-3">
             Understand Your Lab Reports
@@ -68,7 +79,7 @@ function App() {
         </div>
 
         {state.error && (
-          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
             <AlertCircle
               className="text-amber-500 mt-0.5"
               size={20}
@@ -105,6 +116,7 @@ function App() {
 
         <div className="absolute top-[20%] -left-[10%] w-[30%] h-[30%] rounded-full bg-calm-100/40 blur-3xl"></div>
       </div>
+
     </div>
   );
 }
