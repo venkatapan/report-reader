@@ -27,27 +27,56 @@ export default async function handler(
     const buffer = Buffer.concat(chunks);
 
     const boundary = req.headers["content-type"]?.split("boundary=")[1];
+
     if (!boundary) {
       return res.status(400).json({ error: "Invalid form data" });
     }
 
-    // Very simple extraction (assuming single file upload)
+    // Convert uploaded file to base64
     const base64 = buffer.toString("base64");
 
     const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
+
       contents: [
         {
           role: "user",
+
           parts: [
+
+            {
+              text: `
+Analyze this medical report in simple English.
+
+Use headings:
+## 🟢 Normal
+## 🟡 Borderline
+## 🔴 Needs Attention
+
+Rules:
+- Keep the explanation short and mobile friendly
+- Avoid long paragraphs
+- Avoid markdown tables
+- Mention only important findings
+- Use bullet points when possible
+
+Always include:
+## Overall Summary
+
+At the end include:
+"This explanation is AI-generated and not a medical diagnosis. Please consult a doctor for professional advice."
+`,
+            },
+
             {
               inlineData: {
                 mimeType: "application/pdf",
                 data: base64,
               },
             },
+
           ],
         },
       ],
@@ -59,6 +88,9 @@ export default async function handler(
 
   } catch (error: any) {
     console.error("Server Error:", error);
-    return res.status(500).json({ error: error.message });
+
+    return res.status(500).json({
+      error: error.message,
+    });
   }
 }
