@@ -12,7 +12,7 @@ const ResultSection: React.FC<ResultSectionProps> = ({ result, onReset }) => {
   return (
     <div className="animate-in slide-in-from-bottom-4 duration-500">
       <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
-        
+
         <div className="bg-medical-50 px-6 py-4 border-b border-medical-100 flex items-center justify-between">
           <div className="flex items-center gap-2 text-medical-800">
             <Info size={20} />
@@ -33,6 +33,7 @@ const ResultSection: React.FC<ResultSectionProps> = ({ result, onReset }) => {
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
+
                 h1: ({node, ...props}) => (
                   <h1
                     className="text-xl font-bold text-slate-800 border-b border-slate-100 pb-2 mb-4 mt-6 first:mt-0"
@@ -40,12 +41,43 @@ const ResultSection: React.FC<ResultSectionProps> = ({ result, onReset }) => {
                   />
                 ),
 
-                h2: ({node, ...props}) => (
-                  <h2
-                    className="text-lg font-semibold text-medical-700 mt-5 mb-2"
-                    {...props}
-                  />
-                ),
+                h2: ({node, children, ...props}) => {
+                  const text = String(children);
+
+                  let headingClass =
+                    "text-lg font-semibold mt-5 mb-3 px-4 py-3 rounded-xl";
+
+                  if (
+                    text.includes("🟢") ||
+                    text.toLowerCase().includes("normal")
+                  ) {
+                    headingClass +=
+                      " bg-green-100 text-green-700 border border-green-200";
+                  } else if (
+                    text.includes("🟡") ||
+                    text.toLowerCase().includes("borderline")
+                  ) {
+                    headingClass +=
+                      " bg-yellow-100 text-yellow-700 border border-yellow-200";
+                  } else if (
+                    text.includes("🔴") ||
+                    text.toLowerCase().includes("attention")
+                  ) {
+                    headingClass +=
+                      " bg-red-100 text-red-700 border border-red-200";
+                  } else {
+                    headingClass += " text-medical-700";
+                  }
+
+                  return (
+                    <h2
+                      className={headingClass}
+                      {...props}
+                    >
+                      {children}
+                    </h2>
+                  );
+                },
 
                 p: ({node, ...props}) => (
                   <p
@@ -110,6 +142,7 @@ const ResultSection: React.FC<ResultSectionProps> = ({ result, onReset }) => {
             It is not a medical diagnosis. Always discuss your results with your doctor.
           </p>
         </div>
+
       </div>
     </div>
   );
