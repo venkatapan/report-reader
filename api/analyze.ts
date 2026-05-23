@@ -1,5 +1,7 @@
 import { GoogleGenAI } from "@google/genai";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import formidable from "formidable";
+import fs from "fs";
 
 export const config = {
   api: {
@@ -18,66 +20,85 @@ export default async function handler(
       return res.status(500).json({ error: "API key missing" });
     }
 
-    const chunks: Buffer[] = [];
+    const form = formidable({});
 
-    for await (const chunk of req) {
-      chunks.push(chunk);
+    const [fields, files] = await form.parse(req);
+
+    const textInput =
+      typeof fields.text?.[0] === "string"
+        ? fields.text[0]
+        : "";
+
+    let parts: any[] = [];
+
+    // TEXT INPUT
+    if (textInput.trim()) {
+      parts.push({
+        text: `
+You are a medical lab report explainer.
+
+Give:
+1. Quick summary
+2. Abnormal findings
+3. Normal findings
+4. What this means in simple English
+
+Keep response short, clean, readable.
+
+Color hint labels:
+🟢 Normal
+🟡 Borderline
+🔴 High/Low
+
+Medical Report:
+${textInput}
+        `,
+      });
     }
 
-    const buffer = Buffer.concat(chunks);
+    // FILE INPUT
+    const uploadedFile = files.file?.[0];
 
-    const boundary = req.headers["content-type"]?.split("boundary=")[1];
+    if (uploadedFile) {
+      const fileBuffer = fs.readFileSync(uploadedFile.filepath);
 
-    if (!boundary) {
-      return res.status(400).json({ error: "Invalid form data" });
+      const base64File = fileBuffer.toString("base64");
+
+      parts.push({
+        inlineData: {
+          mimeType: uploadedFile.mimetype || "application/pdf",
+          data: base64File,
+        },
+      });
+
+      parts.push({
+        text: `
+Analyze this medical report.
+
+Give:
+1. Quick summary
+2. Abnormal findings
+3. Normal findings
+4. What this means in simple English
+
+Keep response clean and mobile friendly.
+
+Use:
+🟢 Normal
+🟡 Borderline
+🔴 High/Low
+        `,
+      });
     }
-
-    // Convert uploaded file to base64
-    const base64 = buffer.toString("base64");
 
     const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-
+      model: "gemini-2.5-flash",
       contents: [
         {
           role: "user",
-
-          parts: [
-
-            {
-              text: `
-Analyze this medical report in simple English.
-
-Use headings:
-## 🟢 Normal
-## 🟡 Borderline
-## 🔴 Needs Attention
-
-Rules:
-- Keep the explanation short and mobile friendly
-- Avoid long paragraphs
-- Avoid markdown tables
-- Mention only important findings
-- Use bullet points when possible
-
-Always include:
-## Overall Summary
-
-At the end include:
-"This explanation is AI-generated and not a medical diagnosis. Please consult a doctor for professional advice."
-`,
-            },
-
-            {
-              inlineData: {
-                mimeType: "application/pdf",
-                data: base64,
-              },
-            },
-
-          ],
+          parts,
         },
       ],
     });
