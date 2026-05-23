@@ -1,131 +1,193 @@
-import { GoogleGenAI } from "@google/genai";
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import formidable from "formidable";
-import fs from "fs";
+import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Info, AlertCircle, RotateCcw } from 'lucide-react';
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
+interface ResultSectionProps {
+  result: string;
+  onReset: () => void;
+}
+
+const getLineStyle = (text: string) => {
+  const lower = text.toLowerCase();
+
+  // RED
+  if (
+    lower.includes('(high)') ||
+    lower.includes('(low)') ||
+    lower.includes('abnormal') ||
+    lower.includes('elevated') ||
+    lower.includes('deficient')
+  ) {
+    return 'text-red-700 font-semibold';
+  }
+
+  // YELLOW
+  if (
+    lower.includes('slightly') ||
+    lower.includes('borderline') ||
+    lower.includes('mild')
+  ) {
+    return 'text-yellow-700 font-semibold';
+  }
+
+  // GREEN
+  if (
+    lower.includes('(normal)') ||
+    lower.includes('within normal') ||
+    lower.includes('normal findings')
+  ) {
+    return 'text-green-700 font-semibold';
+  }
+
+  return '';
 };
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
-  try {
-    const apiKey = process.env.API_KEY;
+const ResultSection: React.FC<ResultSectionProps> = ({ result, onReset }) => {
+  return (
+    <div className="animate-in slide-in-from-bottom-4 duration-500">
+      <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
 
-    if (!apiKey) {
-      return res.status(500).json({
-        error: "API key missing",
-      });
-    }
+        {/* HEADER */}
+        <div className="bg-medical-50 px-6 py-4 border-b border-medical-100 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-medical-800">
+            <Info size={20} />
+            <h3 className="font-semibold">Report Explanation</h3>
+          </div>
 
-    const form = formidable({});
+          <button
+            onClick={onReset}
+            className="text-sm text-medical-600 hover:text-medical-800 flex items-center gap-1 font-medium transition-colors"
+          >
+            <RotateCcw size={14} />
+            Analyze Another
+          </button>
+        </div>
 
-    const [fields, files] = await form.parse(req);
+        {/* RESULT */}
+        <div className="p-6 md:p-8 overflow-x-auto">
+          <article className="markdown-prose">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
 
-    const uploadedFile = Array.isArray(files.file)
-      ? files.file[0]
-      : files.file;
+                h1: ({node, ...props}) => (
+                  <h1
+                    className="text-3xl font-bold text-slate-900 border-b border-slate-200 pb-3 mb-6 mt-6 first:mt-0"
+                    {...props}
+                  />
+                ),
 
-    const textInput = Array.isArray(fields.text)
-      ? fields.text[0]
-      : fields.text;
+                h2: ({node, ...props}) => {
+                  const text =
+                    typeof props.children?.[0] === 'string'
+                      ? props.children[0]
+                      : '';
 
-    const ai = new GoogleGenAI({
-      apiKey,
-    });
+                  let colorClass = 'text-medical-700';
 
-    let response;
+                  if (text.toLowerCase().includes('normal')) {
+                    colorClass = 'text-green-700';
+                  }
 
-    // IMAGE / PDF upload
-    if (uploadedFile) {
-      const fileBuffer = fs.readFileSync(uploadedFile.filepath);
+                  if (
+                    text.toLowerCase().includes('abnormal') ||
+                    text.toLowerCase().includes('high') ||
+                    text.toLowerCase().includes('low')
+                  ) {
+                    colorClass = 'text-red-700';
+                  }
 
-      const base64File = fileBuffer.toString("base64");
-
-      response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-
-        contents: [
-          {
-            role: "user",
-            parts: [
-              {
-                text: `
-You are a medical report summarizer.
-
-Analyze the uploaded lab report and provide:
-
-# Overall Summary
-Short simple explanation in plain English.
-
-# Abnormal Findings
-Mention only abnormal values with:
-- test name
-- value
-- whether High or Low
-- short meaning
-
-# Normal Findings
-Mention important normal values briefly.
-
-# What This Means
-Simple practical interpretation.
-
-Keep response concise, clean, and mobile-friendly.
-
-Do NOT give excessive warnings.
-Do NOT ask follow-up questions.
-`,
-              },
-
-              {
-                inlineData: {
-                  mimeType: uploadedFile.mimetype || "application/pdf",
-                  data: base64File,
+                  return (
+                    <h2
+                      className={`text-2xl font-bold mt-8 mb-4 border-b pb-2 ${colorClass}`}
+                      {...props}
+                    />
+                  );
                 },
-              },
-            ],
-          },
-        ],
-      });
-    }
 
-    // TEXT INPUT
-    else {
-      response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+                p: ({node, ...props}) => {
+                  const text =
+                    typeof props.children?.[0] === 'string'
+                      ? props.children[0]
+                      : '';
 
-        contents: `
-You are a medical report summarizer.
+                  return (
+                    <p
+                      className={`mb-4 text-slate-700 leading-relaxed ${getLineStyle(text)}`}
+                      {...props}
+                    />
+                  );
+                },
 
-Analyze this report:
+                li: ({node, ...props}) => {
+                  const text =
+                    typeof props.children?.[0] === 'string'
+                      ? props.children[0]
+                      : '';
 
-${textInput}
+                  return (
+                    <li
+                      className={`ml-4 list-disc pl-1 mb-3 text-slate-700 ${getLineStyle(text)}`}
+                      {...props}
+                    />
+                  );
+                },
 
-Provide:
-- Overall Summary
-- Abnormal Findings
-- Normal Findings
-- What This Means
+                strong: ({node, ...props}) => (
+                  <strong
+                    className="font-bold text-slate-900"
+                    {...props}
+                  />
+                ),
 
-Keep it concise and mobile-friendly.
-`,
-      });
-    }
+                table: ({node, ...props}) => (
+                  <table
+                    className="w-full border-collapse border border-slate-300 my-4 text-sm"
+                    {...props}
+                  />
+                ),
 
-    return res.status(200).json({
-      result: response.text,
-    });
+                thead: ({node, ...props}) => (
+                  <thead
+                    className="bg-slate-100"
+                    {...props}
+                  />
+                ),
 
-  } catch (error: any) {
-    console.error(error);
+                th: ({node, ...props}) => (
+                  <th
+                    className="border border-slate-300 px-3 py-2 text-left font-semibold"
+                    {...props}
+                  />
+                ),
 
-    return res.status(500).json({
-      error: error.message,
-    });
-  }
-}
+                td: ({node, ...props}) => (
+                  <td
+                    className="border border-slate-300 px-3 py-2"
+                    {...props}
+                  />
+                ),
+              }}
+            >
+              {result}
+            </ReactMarkdown>
+          </article>
+        </div>
+
+        {/* DISCLAIMER */}
+        <div className="bg-amber-50 p-4 border-t border-amber-100 flex gap-3">
+          <AlertCircle className="text-amber-500 shrink-0" size={20} />
+
+          <p className="text-sm text-amber-800">
+            <strong>Reminder:</strong> This explanation is generated by AI for informational purposes only.
+            It is not a medical diagnosis. Always discuss your results with your doctor.
+          </p>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+export default ResultSection;
