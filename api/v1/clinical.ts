@@ -166,16 +166,40 @@ ${JSON.stringify(observations, null, 2)}
     }
 
     // 8. Return enterprise-friendly response
-    return res.status(200).json({
-      success: true,
-      source: "HL7",
-      data: {
-        observations,
-        analysis,
-      },
-      disclaimer:
-        "This explanation is AI-generated and not a medical diagnosis.",
-    });
+  return res.status(200).json({
+  success: true,
+
+  api_version: "v1",
+
+  source: "HL7",
+
+  data: {
+    observations,
+    analysis: {
+      summary: analysis.summary || "",
+      normal_findings: Array.isArray(
+        analysis.normal_findings
+      )
+        ? analysis.normal_findings
+        : [],
+      borderline_findings: Array.isArray(
+        analysis.borderline_findings
+      )
+        ? analysis.borderline_findings
+        : [],
+      abnormal_findings: Array.isArray(
+        analysis.abnormal_findings
+      )
+        ? analysis.abnormal_findings
+        : [],
+      what_it_means:
+        analysis.what_it_means || "",
+    },
+  },
+
+  disclaimer:
+    "This explanation is AI-generated and not a medical diagnosis.",
+});
   } catch (error: any) {
     console.error(error);
 
