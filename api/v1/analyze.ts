@@ -14,7 +14,7 @@ export default async function handler(
   res: VercelResponse
 ) {
   try {
-    // 1. Check API key
+    // 1. API authentication
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
@@ -35,7 +35,7 @@ export default async function handler(
       });
     }
 
-    // 2. Check Gemini API key
+    // 2. Gemini API key
     const geminiKey = process.env.API_KEY;
 
     if (!geminiKey) {
@@ -44,9 +44,8 @@ export default async function handler(
       });
     }
 
-    // 3. Read incoming request
+    // 3. Parse request
     const form = formidable({});
-
     const [fields, files] = await form.parse(req);
 
     const uploadedFile = Array.isArray(files.file)
@@ -57,28 +56,57 @@ export default async function handler(
       ? fields.text[0]
       : fields.text;
 
-    // 4. Require either text or file
     if (!uploadedFile && !textInput) {
       return res.status(400).json({
         error: "Provide either a medical report file or text",
       });
     }
 
-    // 5. Connect to Gemini
+    // 4. Gemini
     const ai = new GoogleGenAI({
       apiKey: geminiKey,
     });
 
+    const analysisPrompt = `
+Analyze this medical report carefully.
+
+Return ONLY valid JSON using exactly this structure:
+
+{
+  "summary": "Short overall summary",
+  "normal_findings": [
+    "Important normal finding"
+  ],
+  "borderline_findings": [
+    "Important borderline finding"
+  ],
+  "abnormal_findings": [
+    "Important abnormal finding"
+  ],
+  "what_it_means": "Simple explanation of what the findings generally mean"
+}
+
+Rules:
+- Use simple English.
+- Keep the response concise.
+- Include only clinically relevant findings.
+- Do not invent values or findings.
+- If a category has no findings, return an empty array.
+- Do not provide a diagnosis.
+- Do not provide treatment instructions.
+- Do not use Markdown.
+- Return JSON only.
+`;
+
     let response;
 
-    // FILE
+    // 5. File analysis
     if (uploadedFile) {
       const fileBuffer = fs.readFileSync(
         uploadedFile.filepath
       );
 
-      const base64File =
-        fileBuffer.toString("base64");
+      const base64File = fileBuffer.toString("base64");
 
       response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
@@ -87,32 +115,7 @@ export default async function handler(
             role: "user",
             parts: [
               {
-                text: `
-Analyze this medical report in simple English.
-
-FORMAT:
-
-## Overall Summary
-
-## 🟢 Normal Findings
-
-## 🟡 Borderline Findings
-
-## 🔴 Abnormal Findings
-
-## What This Means
-
-Rules:
-- Keep response concise
-- Use bullet points
-- Avoid markdown tables
-- Avoid huge paragraphs
-- Mention only important findings
-- Make it mobile friendly
-
-End with:
-"This explanation is AI-generated and not a medical diagnosis."
-`,
+                text: analysisPrompt,
               },
               {
                 inlineData: {
@@ -125,49 +128,53 @@ End with:
             ],
           },
         ],
+        config: {
+          responseMimeType: "application/json",
+        },
       });
     }
 
-    // TEXT
+    // 6. Text analysis
     else {
       response = await ai.models.generateContent({
         model: "gemini-2.5-flash",
         contents: `
-Analyze this medical report in simple English.
+${analysisPrompt}
 
 Medical Report:
 ${textInput}
-
-FORMAT:
-
-## Overall Summary
-
-## 🟢 Normal Findings
-
-## 🟡 Borderline Findings
-
-## 🔴 Abnormal Findings
-
-## What This Means
-
-Rules:
-- Keep response concise
-- Use bullet points
-- Avoid markdown tables
-- Avoid huge paragraphs
-- Mention only important findings
-- Make it mobile friendly
-
-End with:
-"This explanation is AI-generated and not a medical diagnosis."
 `,
+        config: {
+          responseMimeType: "application/json",
+        },
       });
     }
 
-    // 6. Return AI result
+    // 7. Convert Gemini JSON text into real JSON
+    const rawResult = response.text;
+
+    if (!rawResult) {
+      return res.status(500).json({
+        error: "No analysis returned by AI",
+      });
+    }
+
+    let parsedResult;
+
+    try {
+      parsedResult = JSON.parse(rawResult);
+    } catch {
+      return res.status(500).json({
+        error: "AI returned an invalid JSON response",
+      });
+    }
+
+    // 8. Structured API response
     return res.status(200).json({
       success: true,
-      result: response.text,
+      data: parsedResult,
+      disclaimer:
+        "This explanation is AI-generated and not a medical diagnosis.",
     });
   } catch (error: any) {
     console.error(error);
