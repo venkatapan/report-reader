@@ -8,7 +8,7 @@ export default async function handler(
   try {
     // 1. API authentication
     const authHeader = req.headers.authorization;
-
+ 
     if (!authHeader) {
       return res.status(401).json({
         error: "Authorization header required",
