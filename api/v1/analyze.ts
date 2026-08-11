@@ -5,7 +5,7 @@ import fs from "fs";
 
 export const config = {
   api: {
-    bodyParser: false,
+    bodyParser: false,  
   },
 };
 
