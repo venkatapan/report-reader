@@ -26,14 +26,14 @@ export default async function handler(
       });
     }
 
-    // 2. Only accept POST requests
+    // 2. Only POST
     if (req.method !== "POST") {
       return res.status(405).json({
         error: "Method not allowed",
       });
     }
 
-    // 3. Read raw HL7 body
+    // 3. Read raw HL7 message
     const chunks: Buffer[] = [];
 
     for await (const chunk of req) {
@@ -52,11 +52,55 @@ export default async function handler(
       });
     }
 
-    // 4. Temporary response
+    // 4. Split HL7 into segments
+    const segments = hl7Message
+      .replace(/\r\n/g, "\r")
+      .replace(/\n/g, "\r")
+      .split("\r")
+      .filter(Boolean);
+
+    // 5. Parse each segment
+    const parsedSegments = segments.map((segment) => {
+      const fields = segment.split("|");
+
+      return {
+        type: fields[0],
+        fields,
+      };
+    });
+
+    // 6. Extract useful standard fields
+    const msh = parsedSegments.find(
+      (segment) => segment.type === "MSH"
+    );
+
+    const pid = parsedSegments.find(
+      (segment) => segment.type === "PID"
+    );
+
+    const obxSegments = parsedSegments.filter(
+      (segment) => segment.type === "OBX"
+    );
+
+    // 7. Return parsed structure
     return res.status(200).json({
       success: true,
-      message: "HL7 message received successfully",
-      length: hl7Message.length,
+
+      message: "HL7 message parsed successfully",
+
+      data: {
+        message_type: msh?.fields[8] || null,
+
+        patient_id: pid?.fields[3] || null,
+
+        observations: obxSegments.map((obx) => ({
+          observation_id: obx.fields[3] || null,
+          value: obx.fields[5] || null,
+          units: obx.fields[6] || null,
+          reference_range: obx.fields[7] || null,
+          status: obx.fields[11] || null,
+        })),
+      },
     });
   } catch (error: any) {
     console.error(error);
