@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import formidable from "formidable";
 import fs from "fs";
+import * as dicomParser from "dicom-parser";
 
 export const config = {
   api: {
@@ -85,18 +86,68 @@ export default async function handler(
       });
     }
 
-    // 6. DICOM ingestion confirmation
+    // 6. Parse DICOM
+    let dataSet;
+
+    try {
+      dataSet = dicomParser.parseDicom(
+        new Uint8Array(fileBuffer)
+      );
+    } catch (error: any) {
+      console.error("DICOM parsing failed:", error);
+
+      return res.status(400).json({
+        error: "DICOM file could not be parsed",
+        details:
+          error.message || "Invalid DICOM data",
+      });
+    }
+
+    // 7. Extract technical metadata
+    // Patient-identifying fields are intentionally not returned.
+    const metadata = {
+      modality:
+        dataSet.string("x00080060") || null,
+
+      study_description:
+        dataSet.string("x00081030") || null,
+
+      series_description:
+        dataSet.string("x0008103e") || null,
+
+      study_date:
+        dataSet.string("x00080020") || null,
+
+      rows:
+        dataSet.uint16("x00280010") || null,
+
+      columns:
+        dataSet.uint16("x00280011") || null,
+
+      number_of_frames:
+        dataSet.string("x00280008") || null,
+
+      photometric_interpretation:
+        dataSet.string("x00280004") || null,
+    };
+
+    // 8. Return structured response
     return res.status(200).json({
       success: true,
+      api_version: "v1",
       source: "DICOM",
-      message: "DICOM file received successfully",
+      message:
+        "DICOM metadata extracted successfully",
       data: {
-        filename:
-          uploadedFile.originalFilename || null,
-        size_bytes: fileBuffer.length,
-        content_type:
-          uploadedFile.mimetype ||
-          "application/dicom",
+        metadata,
+        file: {
+          filename:
+            uploadedFile.originalFilename || null,
+          size_bytes: fileBuffer.length,
+          content_type:
+            uploadedFile.mimetype ||
+            "application/dicom",
+        },
       },
     });
   } catch (error: any) {
