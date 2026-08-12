@@ -1,8 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import formidable from "formidable";
 import fs from "fs";
+import * as dcmjs from "dcmjs";
 
-export const config = { 
+export const config = {
   api: {
     bodyParser: false,
   },
@@ -41,12 +42,12 @@ export default async function handler(
       });
     }
 
-    // 3. Receive uploaded DICOM file
+    // 3. Receive DICOM file
     const form = formidable({
       multiples: false,
     });
 
-    const [fields, files] = await form.parse(req);
+    const [, files] = await form.parse(req);
 
     const uploadedFile = Array.isArray(files.file)
       ? files.file[0]
@@ -58,51 +59,63 @@ export default async function handler(
       });
     }
 
-    // 4. Read file
+    // 4. Read DICOM file
     const fileBuffer = fs.readFileSync(
       uploadedFile.filepath
     );
 
-    // 5. Basic DICOM validation
-    // Standard DICOM files normally contain "DICM"
-    // at byte offset 128.
-    const dicomSignature =
-      fileBuffer.length >= 132
-        ? fileBuffer
-            .subarray(128, 132)
-            .toString("ascii")
-        : "";
+    // 5. Parse DICOM
+    const dicomData =
+      dcmjs.data.DicomMessage.readFile(
+        fileBuffer.buffer.slice(
+          fileBuffer.byteOffset,
+          fileBuffer.byteOffset + fileBuffer.byteLength
+        )
+      );
 
-    const looksLikeDicom =
-      dicomSignature === "DICM" ||
-      uploadedFile.mimetype === "application/dicom" ||
-      uploadedFile.originalFilename
-        ?.toLowerCase()
-        .endsWith(".dcm");
+    const dataset =
+      dcmjs.data.DicomMetaDictionary.naturalizeDataset(
+        dicomData.dict
+      );
 
-    if (!looksLikeDicom) {
-      return res.status(400).json({
-        error: "Uploaded file does not appear to be a valid DICOM file",
-      });
-    }
+    // 6. Extract only useful technical metadata
+    const metadata = {
+      modality: dataset.Modality || null,
+      study_description:
+        dataset.StudyDescription || null,
+      series_description:
+        dataset.SeriesDescription || null,
+      study_date:
+        dataset.StudyDate || null,
+      rows: dataset.Rows || null,
+      columns: dataset.Columns || null,
+      number_of_frames:
+        dataset.NumberOfFrames || null,
+      photometric_interpretation:
+        dataset.PhotometricInterpretation || null,
+    };
 
-    // 6. DICOM ingestion confirmation
+    // 7. Return metadata
     return res.status(200).json({
       success: true,
       source: "DICOM",
-      message: "DICOM file received successfully",
+      message: "DICOM metadata extracted successfully",
       data: {
-        filename: uploadedFile.originalFilename || null,
-        size_bytes: fileBuffer.length,
-        content_type:
-          uploadedFile.mimetype || "application/dicom",
+        metadata,
+        file: {
+          filename:
+            uploadedFile.originalFilename || null,
+          size_bytes: fileBuffer.length,
+        },
       },
     });
   } catch (error: any) {
     console.error(error);
 
     return res.status(500).json({
-      error: error.message || "Internal server error",
+      error:
+        error.message ||
+        "Failed to parse DICOM file",
     });
   }
 }
