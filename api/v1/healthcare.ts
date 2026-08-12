@@ -1,5 +1,6 @@
 export type HealthcareSource =
   | "HL7"
+  | "FHIR"
   | "DICOM"
   | "LAB_REPORT"
   | "CLINICAL_TEXT";
