@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import formidable from "formidable";
 import fs from "fs";
-import * as dcmjs from "dcmjs";
 
 export const config = {
   api: {
@@ -86,97 +85,18 @@ export default async function handler(
       });
     }
 
-    // 6. Parse DICOM
-    let dicomData;
-
-    try {
-      dicomData =
-        dcmjs.data.DicomMessage.readFile(
-          fileBuffer.buffer.slice(
-            fileBuffer.byteOffset,
-            fileBuffer.byteOffset +
-              fileBuffer.byteLength
-          )
-        );
-    } catch (error: any) {
-      console.error("DICOM parsing failed:", error);
-
-      return res.status(400).json({
-        error: "DICOM file could not be parsed",
-        details:
-          error.message || "Invalid DICOM data",
-      });
-    }
-
-    // 7. Convert DICOM dataset to readable metadata
-    let dataset;
-
-    try {
-      dataset =
-        dcmjs.data.DicomMetaDictionary.naturalizeDataset(
-          dicomData.dict
-        );
-    } catch (error: any) {
-      console.error(
-        "DICOM metadata extraction failed:",
-        error
-      );
-
-      return res.status(400).json({
-        error:
-          "DICOM metadata could not be extracted",
-      });
-    }
-
-    // 8. Extract useful technical metadata
-    // Do not return patient-identifying information.
-    const metadata = {
-      modality: dataset.Modality || null,
-
-      study_description:
-        dataset.StudyDescription || null,
-
-      series_description:
-        dataset.SeriesDescription || null,
-
-      study_date:
-        dataset.StudyDate || null,
-
-      rows: dataset.Rows || null,
-
-      columns: dataset.Columns || null,
-
-      number_of_frames:
-        dataset.NumberOfFrames || null,
-
-      photometric_interpretation:
-        dataset.PhotometricInterpretation || null,
-    };
-
-    // 9. Return structured response
+    // 6. DICOM ingestion confirmation
     return res.status(200).json({
       success: true,
-
-      api_version: "v1",
-
       source: "DICOM",
-
-      message:
-        "DICOM metadata extracted successfully",
-
+      message: "DICOM file received successfully",
       data: {
-        metadata,
-
-        file: {
-          filename:
-            uploadedFile.originalFilename || null,
-
-          size_bytes: fileBuffer.length,
-
-          content_type:
-            uploadedFile.mimetype ||
-            "application/dicom",
-        },
+        filename:
+          uploadedFile.originalFilename || null,
+        size_bytes: fileBuffer.length,
+        content_type:
+          uploadedFile.mimetype ||
+          "application/dicom",
       },
     });
   } catch (error: any) {
@@ -184,8 +104,7 @@ export default async function handler(
 
     return res.status(500).json({
       error:
-        error.message ||
-        "Internal server error",
+        error.message || "Internal server error",
     });
   }
 }
