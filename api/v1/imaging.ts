@@ -85,11 +85,16 @@ export default async function handler(
       });
     }
 
-    // 6. Load DICOM parser only after a file has been received
+    // 6. Load DICOM parser using ESM dynamic import
     let dicomParser: any;
 
     try {
-      dicomParser = require("dicom-parser");
+      const dicomParserModule: any =
+        await import("dicom-parser");
+
+      dicomParser =
+        dicomParserModule.default ??
+        dicomParserModule;
     } catch (error: any) {
       console.error(
         "dicom-parser loading failed:",
