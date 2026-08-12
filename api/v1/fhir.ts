@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { HealthcareResponse } from "./healthcare";
 
 export default async function handler(
   req: VercelRequest,
@@ -33,7 +34,7 @@ export default async function handler(
       });
     }
 
-    // 3. Parse JSON body
+    // 3. Read FHIR JSON
     const body = req.body;
 
     if (!body || typeof body !== "object") {
@@ -42,7 +43,7 @@ export default async function handler(
       });
     }
 
-    // 4. Validate FHIR resource type
+    // 4. Validate resource type
     const resourceType = body.resourceType;
 
     const supportedResources = [
@@ -58,60 +59,154 @@ export default async function handler(
       });
     }
 
-    // 5. Normalize resource
-    const normalizedData: Record<string, unknown> = {
-      resource_type: resourceType,
-      resource_id: body.id || null,
+    // 5. Create common healthcare response
+    const response: HealthcareResponse = {
+      success: true,
+      api_version: "v1",
+      source: "FHIR",
+
+      data: {
+        patient: {},
+        encounter: {},
+        clinical: {},
+        observations: [],
+        document: {
+          type: "FHIR",
+          title: null,
+          date: null,
+        },
+        metadata: {
+          fhir_resource_type: resourceType,
+          fhir_resource_id: body.id || null,
+        },
+      },
     };
 
-    // Patient
+    // 6. Patient
     if (resourceType === "Patient") {
-      normalizedData.patient = {
+      const firstName =
+        body.name?.[0]?.given?.join(" ") || "";
+
+      const familyName =
+        body.name?.[0]?.family || "";
+
+      const fullName =
+        [firstName, familyName]
+          .filter(Boolean)
+          .join(" ") || null;
+
+      response.data.patient = {
         id: body.id || null,
-        identifier: body.identifier || [],
-        name: body.name || [],
+        name: fullName,
         gender: body.gender || null,
         date_of_birth: body.birthDate || null,
       };
-    }
 
-    // Observation
-    if (resourceType === "Observation") {
-      normalizedData.observation = {
-        id: body.id || null,
-        status: body.status || null,
-        code: body.code || null,
-        value: body.valueQuantity || null,
-        reference_range: body.referenceRange || [],
-        effective_date: body.effectiveDateTime || null,
+      response.data.document = {
+        type: "FHIR Patient",
+        title: "Patient Record",
+        date: null,
+      };
+
+      response.data.metadata = {
+        fhir_resource_type: "Patient",
+        fhir_resource_id: body.id || null,
+        identifiers: body.identifier || [],
       };
     }
 
-    // DiagnosticReport
+    // 7. Observation
+    if (resourceType === "Observation") {
+      const coding = body.code?.coding?.[0];
+
+      response.data.observations = [
+        {
+          code: coding?.code || null,
+
+          name:
+            coding?.display ||
+            body.code?.text ||
+            null,
+
+          value:
+            body.valueQuantity?.value ??
+            null,
+
+          unit:
+            body.valueQuantity?.unit ||
+            null,
+
+          reference_range:
+            body.referenceRange?.length
+              ? JSON.stringify(body.referenceRange)
+              : null,
+
+          status:
+            body.status ||
+            null,
+        },
+      ];
+
+      response.data.document = {
+        type: "FHIR Observation",
+        title:
+          coding?.display ||
+          body.code?.text ||
+          "FHIR Observation",
+        date:
+          body.effectiveDateTime ||
+          null,
+      };
+
+      response.data.metadata = {
+        fhir_resource_type: "Observation",
+        fhir_resource_id: body.id || null,
+        effective_date:
+          body.effectiveDateTime || null,
+      };
+    }
+
+    // 8. DiagnosticReport
     if (resourceType === "DiagnosticReport") {
-      normalizedData.diagnostic_report = {
-        id: body.id || null,
+      const coding = body.code?.coding?.[0];
+
+      response.data.document = {
+        type: "FHIR DiagnosticReport",
+        title:
+          coding?.display ||
+          body.code?.text ||
+          "Diagnostic Report",
+        date:
+          body.effectiveDateTime ||
+          null,
+      };
+
+      response.data.clinical = {
+        diagnosis: body.conclusion
+          ? [body.conclusion]
+          : [],
+        procedures: [],
+        medications: [],
+        allergies: [],
+      };
+
+      response.data.metadata = {
+        fhir_resource_type: "DiagnosticReport",
+        fhir_resource_id: body.id || null,
         status: body.status || null,
-        code: body.code || null,
-        effective_date: body.effectiveDateTime || null,
-        conclusion: body.conclusion || null,
         results: body.result || [],
       };
     }
 
-    // 6. Return normalized FHIR response
-    return res.status(200).json({
-      success: true,
-      api_version: "v1",
-      source: "FHIR",
-      data: normalizedData,
-    });
+    // 9. Return common healthcare response
+    return res.status(200).json(response);
   } catch (error: any) {
     console.error(error);
 
     return res.status(500).json({
       error:
-        error.message || "Internal server error",
+        error.message ||
+        "Internal server error",
     });
   }
 }
