@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import formidable from "formidable";
 import fs from "fs";
 
-export const config = {
+export const config = { 
   api: {
     bodyParser: false,
   },
