@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import formidable from "formidable";
 import fs from "fs";
+import type { HealthcareResponse } from "../types/healthcare";
 
 export const config = {
   api: {
@@ -128,9 +129,7 @@ export default async function handler(
       });
     }
 
-    // 8. Extract technical metadata
-    // Patient-identifying information is intentionally
-    // not returned.
+    // 8. Extract DICOM metadata
     const metadata = {
       modality:
         dataSet.string("x00080060") || null,
@@ -157,25 +156,48 @@ export default async function handler(
         dataSet.string("x00280004") || null,
     };
 
-    // 9. Return structured response
-    return res.status(200).json({
+    // 9. Common healthcare response
+    const response: HealthcareResponse = {
       success: true,
       api_version: "v1",
       source: "DICOM",
-      message:
-        "DICOM metadata extracted successfully",
+
       data: {
-        metadata,
-        file: {
-          filename:
-            uploadedFile.originalFilename || null,
-          size_bytes: fileBuffer.length,
-          content_type:
-            uploadedFile.mimetype ||
-            "application/dicom",
+        patient: {},
+
+        encounter: {},
+
+        clinical: {},
+
+        observations: [],
+
+        document: {
+          type: "DICOM",
+          title:
+            metadata.study_description ||
+            "DICOM Imaging Study",
+          date: metadata.study_date,
+        },
+
+        metadata: {
+          ...metadata,
+
+          file: {
+            filename:
+              uploadedFile.originalFilename || null,
+
+            size_bytes: fileBuffer.length,
+
+            content_type:
+              uploadedFile.mimetype ||
+              "application/dicom",
+          },
         },
       },
-    });
+    };
+
+    // 10. Return standardized healthcare response
+    return res.status(200).json(response);
   } catch (error: any) {
     console.error(error);
 
