@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import formidable from "formidable";
 import fs from "fs";
-import * as dicomParser from "dicom-parser";
 
 export const config = {
   api: {
@@ -86,15 +85,36 @@ export default async function handler(
       });
     }
 
-    // 6. Parse DICOM
-    let dataSet;
+    // 6. Load DICOM parser only after a file has been received
+    let dicomParser: any;
+
+    try {
+      dicomParser = require("dicom-parser");
+    } catch (error: any) {
+      console.error(
+        "dicom-parser loading failed:",
+        error
+      );
+
+      return res.status(500).json({
+        error: "DICOM parser could not be loaded",
+        details:
+          error.message || "Parser loading failed",
+      });
+    }
+
+    // 7. Parse DICOM file
+    let dataSet: any;
 
     try {
       dataSet = dicomParser.parseDicom(
         new Uint8Array(fileBuffer)
       );
     } catch (error: any) {
-      console.error("DICOM parsing failed:", error);
+      console.error(
+        "DICOM parsing failed:",
+        error
+      );
 
       return res.status(400).json({
         error: "DICOM file could not be parsed",
@@ -103,8 +123,9 @@ export default async function handler(
       });
     }
 
-    // 7. Extract technical metadata
-    // Patient-identifying fields are intentionally not returned.
+    // 8. Extract technical metadata
+    // Patient-identifying information is intentionally
+    // not returned.
     const metadata = {
       modality:
         dataSet.string("x00080060") || null,
@@ -131,7 +152,7 @@ export default async function handler(
         dataSet.string("x00280004") || null,
     };
 
-    // 8. Return structured response
+    // 9. Return structured response
     return res.status(200).json({
       success: true,
       api_version: "v1",
