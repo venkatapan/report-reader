@@ -1,1 +1,108 @@
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import formidable from "formidable";
+import fs from "fs";
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+export default async function handler(
+  req: VercelRequest,
+  res: VercelResponse
+) {
+  try {
+    // 1. API authentication
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      return res.status(401).json({
+        error: "Authorization header required",
+      });
+    }
+
+    const [scheme, token] = authHeader.split(" ");
+
+    if (
+      scheme !== "Bearer" ||
+      !token ||
+      token !== process.env.AIREPORTREADER_API_KEY
+    ) {
+      return res.status(401).json({
+        error: "Invalid API key",
+      });
+    }
+
+    // 2. POST only
+    if (req.method !== "POST") {
+      return res.status(405).json({
+        error: "Method not allowed",
+      });
+    }
+
+    // 3. Receive uploaded DICOM file
+    const form = formidable({
+      multiples: false,
+    });
+
+    const [fields, files] = await form.parse(req);
+
+    const uploadedFile = Array.isArray(files.file)
+      ? files.file[0]
+      : files.file;
+
+    if (!uploadedFile) {
+      return res.status(400).json({
+        error: "DICOM file is required",
+      });
+    }
+
+    // 4. Read file
+    const fileBuffer = fs.readFileSync(
+      uploadedFile.filepath
+    );
+
+    // 5. Basic DICOM validation
+    // Standard DICOM files normally contain "DICM"
+    // at byte offset 128.
+    const dicomSignature =
+      fileBuffer.length >= 132
+        ? fileBuffer
+            .subarray(128, 132)
+            .toString("ascii")
+        : "";
+
+    const looksLikeDicom =
+      dicomSignature === "DICM" ||
+      uploadedFile.mimetype === "application/dicom" ||
+      uploadedFile.originalFilename
+        ?.toLowerCase()
+        .endsWith(".dcm");
+
+    if (!looksLikeDicom) {
+      return res.status(400).json({
+        error: "Uploaded file does not appear to be a valid DICOM file",
+      });
+    }
+
+    // 6. DICOM ingestion confirmation
+    return res.status(200).json({
+      success: true,
+      source: "DICOM",
+      message: "DICOM file received successfully",
+      data: {
+        filename: uploadedFile.originalFilename || null,
+        size_bytes: fileBuffer.length,
+        content_type:
+          uploadedFile.mimetype || "application/dicom",
+      },
+    });
+  } catch (error: any) {
+    console.error(error);
+
+    return res.status(500).json({
+      error: error.message || "Internal server error",
+    });
+  }
+}
