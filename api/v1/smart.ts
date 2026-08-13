@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { discoverSMARTConfiguration } from "../types/smart-config";
+import { discoverSMARTConfiguration } from "../../lib/types/smart-config.js";
 
 export default async function handler(
   req: VercelRequest,
