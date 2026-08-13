@@ -40,37 +40,42 @@ export default async function handler(
 
     // 3. Read OAuth configuration
     const tokenUrl =
-      process.env.FHIR_TOKEN_URL;
+  process.env.FHIR_TOKEN_URL;
 
-    const clientId =
-      process.env.FHIR_CLIENT_ID;
+const clientId =
+  process.env.FHIR_CLIENT_ID;
 
-    const clientSecret =
-      process.env.FHIR_CLIENT_SECRET;
+const privateJwk =
+  process.env.FHIR_PRIVATE_JWK;
 
-    const scope =
-      process.env.FHIR_SCOPE;
+const scope =
+  process.env.FHIR_SCOPE;
 
-    if (
-      !tokenUrl ||
-      !clientId ||
-      !clientSecret
-    ) {
-      return res.status(500).json({
-        error:
-          "FHIR OAuth configuration is incomplete",
-      });
-    }
+const keyId =
+  process.env.FHIR_KEY_ID;
+
+if (
+  !tokenUrl ||
+  !clientId ||
+  !privateJwk ||
+  !scope ||
+  !keyId
+) {
+  return res.status(500).json({
+    error:
+      "FHIR OAuth configuration is incomplete",
+  });
+}
 
     // 4. Request access token
-    const tokenResponse =
-      await getFHIRAccessToken({
-        tokenUrl,
-        clientId,
-        clientSecret,
-        scope,
-      });
-
+const tokenResponse =
+  await getFHIRAccessToken({
+    tokenUrl,
+    clientId,
+    privateJwk,
+    scope,
+    keyId,
+  });
     // 5. Never expose the access token
     return res.status(200).json({
       success: true,
