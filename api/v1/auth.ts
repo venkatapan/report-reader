@@ -3,7 +3,7 @@ import {
   getFHIRAccessToken,
 } from "../../lib/types/fhir-auth.js";
 
-export default async function handler(
+export default async function handler( 
   req: VercelRequest,
   res: VercelResponse
 ) {
