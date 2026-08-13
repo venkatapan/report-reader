@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   getFHIRAccessToken,
-} from "../types/fhir-auth";
+} from "../types/fhir-auth.js";
 
 export default async function handler(
   req: VercelRequest,
