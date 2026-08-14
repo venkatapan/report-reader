@@ -49,16 +49,17 @@ export async function getFHIRAccessToken(
 
   const body = new URLSearchParams();
 
-  body.set(
-    "grant_type",
-    "client_credentials"
-  );
+body.set(
+  "grant_type",
+  "client_credentials"
+);
 
-  body.set(
-    "scope",
-    options.scope
-  );
 
+body.set(
+  "scope",
+  options.scope
+);
+  
   body.set(
     "client_assertion_type",
     "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
