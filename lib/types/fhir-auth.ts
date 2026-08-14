@@ -1,4 +1,4 @@
-import { importJWK, SignJWT } from "jose";
+import { importPKCS8, SignJWT } from "jose";
 
 export interface FHIRAuthOptions {
   tokenUrl: string;
@@ -20,16 +20,22 @@ export async function getFHIRAccessToken(
 ): Promise<FHIRAuthToken> {
   const privateJwk = JSON.parse(options.privateJwk);
 
-  const privateKey = await importJWK(
+  const privateKey = await crypto.subtle.importKey(
+    "jwk",
     privateJwk,
-    "ES384"
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      hash: "SHA-384",
+    },
+    false,
+    ["sign"]
   );
 
   const now = Math.floor(Date.now() / 1000);
 
   const clientAssertion = await new SignJWT({})
     .setProtectedHeader({
-      alg: "ES384",
+      alg: "RS384",
       kid: options.keyId,
       typ: "JWT",
     })
