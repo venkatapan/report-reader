@@ -2,6 +2,7 @@ import { importPKCS8, SignJWT } from "jose";
 
 export interface FHIRAuthOptions { 
   tokenUrl: string;
+  serviceUrl: string;
   clientId: string;
   privateJwk: string;
   scope: string;
@@ -39,7 +40,7 @@ export async function getFHIRAccessToken(
     kid: options.keyId,
     typ: "JWT",
   })
-  .setIssuer(options.clientId)
+  .setIssuer(options.serviceUrl)
   .setSubject(options.clientId)
   .setAudience(options.tokenUrl)
   .setJti(crypto.randomUUID())
