@@ -3,7 +3,7 @@ import {
   getFHIRAccessToken,
 } from "../../lib/types/fhir-auth.js";
 
-export default async function handler( 
+export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
@@ -40,42 +40,48 @@ export default async function handler(
 
     // 3. Read OAuth configuration
     const tokenUrl =
-  process.env.FHIR_TOKEN_URL;
+      process.env.FHIR_TOKEN_URL;
 
-const clientId =
-  process.env.FHIR_CLIENT_ID;
+    const clientId =
+      process.env.FHIR_CLIENT_ID;
 
-const privateJwk =
-  process.env.FHIR_PRIVATE_JWK;
+    const privateJwk =
+      process.env.FHIR_PRIVATE_JWK;
 
-const scope =
-  process.env.FHIR_SCOPE;
+    const scope =
+      process.env.FHIR_SCOPE;
 
-const keyId =
-  process.env.FHIR_KEY_ID;
+    const keyId =
+      process.env.FHIR_KEY_ID;
 
-if (
-  !tokenUrl ||
-  !clientId ||
-  !privateJwk ||
-  !scope ||
-  !keyId
-) {
-  return res.status(500).json({
-    error:
-      "FHIR OAuth configuration is incomplete",
-  });
-}
+    const serviceUrl =
+      process.env.FHIR_SERVICE_URL;
+
+    if (
+      !tokenUrl ||
+      !clientId ||
+      !privateJwk ||
+      !scope ||
+      !keyId ||
+      !serviceUrl
+    ) {
+      return res.status(500).json({
+        error:
+          "FHIR OAuth configuration is incomplete",
+      });
+    }
 
     // 4. Request access token
-const tokenResponse =
-  await getFHIRAccessToken({
-    tokenUrl,
-    clientId,
-    privateJwk,
-    scope,
-    keyId,
-  });
+    const tokenResponse =
+      await getFHIRAccessToken({
+        tokenUrl,
+        clientId,
+        privateJwk,
+        scope,
+        keyId,
+        serviceUrl,
+      });
+
     // 5. Never expose the access token
     return res.status(200).json({
       success: true,
