@@ -34,18 +34,18 @@ export async function getFHIRAccessToken(
   const now = Math.floor(Date.now() / 1000);
 
   const clientAssertion = await new SignJWT({})
-    .setProtectedHeader({
-      alg: "RS384",
-      kid: options.keyId,
-      typ: "JWT",
-    })
-    .setIssuer(options.clientId)
-    .setSubject(options.clientId)
-    .setAudience(options.tokenUrl)
-    .setJti(crypto.randomUUID())
-    .setIssuedAt(now)
-    .setExpirationTime(now + 300)
-    .sign(privateKey);
+  .setProtectedHeader({
+    alg: "RS384",
+    kid: options.keyId,
+    typ: "JWT",
+  })
+  .setIssuer(options.serviceUrl)
+  .setSubject(options.clientId)
+  .setAudience(options.tokenUrl)
+  .setJti(crypto.randomUUID())
+  .setIssuedAt(now)
+  .setExpirationTime(now + 300)
+  .sign(privateKey);
 
   const body = new URLSearchParams();
 
