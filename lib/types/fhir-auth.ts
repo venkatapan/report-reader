@@ -39,7 +39,7 @@ export async function getFHIRAccessToken(
     kid: options.keyId,
     typ: "JWT",
   })
-  .setIssuer(options.serviceUrl)
+  .setIssuer(options.clientId)
   .setSubject(options.clientId)
   .setAudience(options.tokenUrl)
   .setJti(crypto.randomUUID())
