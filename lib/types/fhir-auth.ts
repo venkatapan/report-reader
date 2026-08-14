@@ -1,6 +1,6 @@
 import { importPKCS8, SignJWT } from "jose";
 
-export interface FHIRAuthOptions {
+export interface FHIRAuthOptions { 
   tokenUrl: string;
   clientId: string;
   privateJwk: string;
