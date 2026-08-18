@@ -9,7 +9,7 @@ import {
 
 import type {
   HealthcareResponse,
-} from "./healthcare";
+} from "./healthcare"; 
 
 export default async function handler(
   req: VercelRequest,
