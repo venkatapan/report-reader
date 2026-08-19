@@ -6,7 +6,7 @@ import type {
 
 import type {
   HealthcareResponse,
-} from "./healthcare";
+} from "../../lib/healthcare";
 
 export default async function handler(
   req: VercelRequest,
