@@ -11,9 +11,6 @@ import type {
 interface HospitalWorkflowInput {
   fhir?: HealthcareResponse;
   pacs?: HealthcareResponse;
-
-  // Backward compatibility:
-  // allow the existing single HealthcareResponse flow too.
   healthcareData?: HealthcareResponse;
 }
 
@@ -65,7 +62,7 @@ export default async function handler(
       });
     }
 
-    // 4. Read request
+    // 4. Read request body
     const body =
       req.body as HospitalWorkflowInput;
 
@@ -78,7 +75,7 @@ export default async function handler(
     const singleHealthcareData =
       body?.healthcareData;
 
-    // Existing single-source flow
+    // 5. Collect valid healthcare sources
     const healthcareResponses:
       HealthcareResponse[] = [];
 
@@ -92,7 +89,6 @@ export default async function handler(
       );
     }
 
-    // New hospital workflow flow
     if (
       fhir &&
       fhir.success === true &&
@@ -118,88 +114,59 @@ export default async function handler(
       });
     }
 
-    // 5. Merge hospital information
-    const primary =
-      healthcareResponses[0];
-
+    // 6. Merge patient data
     const combinedPatient = {
       ...(pacs?.data.patient || {}),
       ...(fhir?.data.patient || {}),
       ...(singleHealthcareData?.data.patient || {}),
     };
 
+    // 7. Merge encounter data
     const combinedEncounter = {
       ...(pacs?.data.encounter || {}),
       ...(fhir?.data.encounter || {}),
       ...(singleHealthcareData?.data.encounter || {}),
     };
 
+    // 8. Merge clinical data
     const combinedClinical = {
       diagnosis: [
-        ...(
-          fhir?.data.clinical.diagnosis ||
-          []
-        ),
-        ...(
-          pacs?.data.clinical.diagnosis ||
-          []
-        ),
+        ...(fhir?.data.clinical.diagnosis || []),
+        ...(pacs?.data.clinical.diagnosis || []),
+        ...(singleHealthcareData?.data.clinical.diagnosis || []),
       ],
 
       procedures: [
-        ...(
-          fhir?.data.clinical.procedures ||
-          []
-        ),
-        ...(
-          pacs?.data.clinical.procedures ||
-          []
-        ),
+        ...(fhir?.data.clinical.procedures || []),
+        ...(pacs?.data.clinical.procedures || []),
+        ...(singleHealthcareData?.data.clinical.procedures || []),
       ],
 
       medications: [
-        ...(
-          fhir?.data.clinical.medications ||
-          []
-        ),
-        ...(
-          pacs?.data.clinical.medications ||
-          []
-        ),
+        ...(fhir?.data.clinical.medications || []),
+        ...(pacs?.data.clinical.medications || []),
+        ...(singleHealthcareData?.data.clinical.medications || []),
       ],
 
       allergies: [
-        ...(
-          fhir?.data.clinical.allergies ||
-          []
-        ),
-        ...(
-          pacs?.data.clinical.allergies ||
-          []
-        ),
+        ...(fhir?.data.clinical.allergies || []),
+        ...(pacs?.data.clinical.allergies || []),
+        ...(singleHealthcareData?.data.clinical.allergies || []),
       ],
     };
 
+    // 9. Merge observations
     const combinedObservations = [
-      ...(
-        fhir?.data.observations ||
-        []
-      ),
-      ...(
-        pacs?.data.observations ||
-        []
-      ),
+      ...(fhir?.data.observations || []),
+      ...(pacs?.data.observations || []),
+      ...(singleHealthcareData?.data.observations || []),
     ];
 
+    // 10. Merge metadata
     const combinedMetadata = {
-      ...(
-        pacs?.data.metadata ||
-        {}
-      ),
-      ...(
-        fhir?.data.metadata ||
-        {}
-      ),
+      ...(pacs?.data.metadata || {}),
+      ...(fhir?.data.metadata || {}),
+      ...(singleHealthcareData?.data.metadata || {}),
 
       sources:
         healthcareResponses.map(
@@ -207,12 +174,26 @@ export default async function handler(
         ),
     };
 
+    // 11. Select document
+    const combinedDocument =
+      fhir?.data.document ||
+      pacs?.data.document ||
+      singleHealthcareData?.data.document ||
+      {
+        type: null,
+        title: null,
+        date: null,
+      };
+
+    // 12. Build unified healthcare data
     const healthcareData = {
       success: true,
       api_version: "v1" as const,
 
       source:
-        primary.source,
+        healthcareResponses.length === 1
+          ? healthcareResponses[0].source
+          : "FHIR" as const,
 
       data: {
         patient:
@@ -228,21 +209,14 @@ export default async function handler(
           combinedObservations,
 
         document:
-          fhir?.data.document ||
-          pacs?.data.document ||
-          singleHealthcareData?.data.document ||
-          {
-            type: null,
-            title: null,
-            date: null,
-          },
+          combinedDocument,
 
         metadata:
           combinedMetadata,
       },
     };
 
-    // 6. Gemini
+    // 13. Gemini
     const ai = new GoogleGenAI({
       apiKey: geminiKey,
     });
@@ -301,6 +275,7 @@ ${JSON.stringify(
         },
       });
 
+    // 14. Parse Gemini response
     const rawResult =
       response.text;
 
@@ -323,7 +298,7 @@ ${JSON.stringify(
       });
     }
 
-    // 7. Return combined healthcare data + AI analysis
+    // 15. Return result
     return res.status(200).json({
       success: true,
       api_version: "v1",
