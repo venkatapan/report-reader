@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import type { HealthcareResponse } from "./healthcare";
+import type { HealthcareResponse } from "../../lib/healthcare";
 
 export default async function handler(
   req: VercelRequest,
