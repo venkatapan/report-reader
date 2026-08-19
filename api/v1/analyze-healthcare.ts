@@ -8,6 +8,15 @@ import type {
   HealthcareResponse,
 } from "../../lib/healthcare";
 
+interface HospitalWorkflowInput {
+  fhir?: HealthcareResponse;
+  pacs?: HealthcareResponse;
+
+  // Backward compatibility:
+  // allow the existing single HealthcareResponse flow too.
+  healthcareData?: HealthcareResponse;
+}
+
 export default async function handler(
   req: VercelRequest,
   res: VercelResponse
@@ -56,29 +65,197 @@ export default async function handler(
       });
     }
 
-    // 4. Read normalized healthcare data
-    const healthcareData =
-      req.body as HealthcareResponse;
+    // 4. Read request
+    const body =
+      req.body as HospitalWorkflowInput;
+
+    const fhir =
+      body?.fhir;
+
+    const pacs =
+      body?.pacs;
+
+    const singleHealthcareData =
+      body?.healthcareData;
+
+    // Existing single-source flow
+    const healthcareResponses:
+      HealthcareResponse[] = [];
 
     if (
-      !healthcareData ||
-      healthcareData.success !== true ||
-      !healthcareData.source ||
-      !healthcareData.data
+      singleHealthcareData &&
+      singleHealthcareData.success === true &&
+      singleHealthcareData.data
+    ) {
+      healthcareResponses.push(
+        singleHealthcareData
+      );
+    }
+
+    // New hospital workflow flow
+    if (
+      fhir &&
+      fhir.success === true &&
+      fhir.data
+    ) {
+      healthcareResponses.push(fhir);
+    }
+
+    if (
+      pacs &&
+      pacs.success === true &&
+      pacs.data
+    ) {
+      healthcareResponses.push(pacs);
+    }
+
+    if (
+      healthcareResponses.length === 0
     ) {
       return res.status(400).json({
         error:
-          "Valid HealthcareResponse is required",
+          "Provide a valid HealthcareResponse, FHIR HealthcareResponse, or PACS HealthcareResponse",
       });
     }
 
-    // 5. Send structured healthcare data to Gemini
+    // 5. Merge hospital information
+    const primary =
+      healthcareResponses[0];
+
+    const combinedPatient = {
+      ...(pacs?.data.patient || {}),
+      ...(fhir?.data.patient || {}),
+      ...(singleHealthcareData?.data.patient || {}),
+    };
+
+    const combinedEncounter = {
+      ...(pacs?.data.encounter || {}),
+      ...(fhir?.data.encounter || {}),
+      ...(singleHealthcareData?.data.encounter || {}),
+    };
+
+    const combinedClinical = {
+      diagnosis: [
+        ...(
+          fhir?.data.clinical.diagnosis ||
+          []
+        ),
+        ...(
+          pacs?.data.clinical.diagnosis ||
+          []
+        ),
+      ],
+
+      procedures: [
+        ...(
+          fhir?.data.clinical.procedures ||
+          []
+        ),
+        ...(
+          pacs?.data.clinical.procedures ||
+          []
+        ),
+      ],
+
+      medications: [
+        ...(
+          fhir?.data.clinical.medications ||
+          []
+        ),
+        ...(
+          pacs?.data.clinical.medications ||
+          []
+        ),
+      ],
+
+      allergies: [
+        ...(
+          fhir?.data.clinical.allergies ||
+          []
+        ),
+        ...(
+          pacs?.data.clinical.allergies ||
+          []
+        ),
+      ],
+    };
+
+    const combinedObservations = [
+      ...(
+        fhir?.data.observations ||
+        []
+      ),
+      ...(
+        pacs?.data.observations ||
+        []
+      ),
+    ];
+
+    const combinedMetadata = {
+      ...(
+        pacs?.data.metadata ||
+        {}
+      ),
+      ...(
+        fhir?.data.metadata ||
+        {}
+      ),
+
+      sources:
+        healthcareResponses.map(
+          (item) => item.source
+        ),
+    };
+
+    const healthcareData = {
+      success: true,
+      api_version: "v1" as const,
+
+      source:
+        primary.source,
+
+      data: {
+        patient:
+          combinedPatient,
+
+        encounter:
+          combinedEncounter,
+
+        clinical:
+          combinedClinical,
+
+        observations:
+          combinedObservations,
+
+        document:
+          fhir?.data.document ||
+          pacs?.data.document ||
+          singleHealthcareData?.data.document ||
+          {
+            type: null,
+            title: null,
+            date: null,
+          },
+
+        metadata:
+          combinedMetadata,
+      },
+    };
+
+    // 6. Gemini
     const ai = new GoogleGenAI({
       apiKey: geminiKey,
     });
 
     const analysisPrompt = `
-Analyze the following healthcare data in simple English.
+Analyze the following hospital healthcare data
+in simple English.
+
+The data may contain information from:
+- FHIR / EHR
+- PACS / DICOM
+
+Use ALL supplied information together.
 
 Return ONLY valid JSON using exactly this structure:
 
@@ -98,11 +275,11 @@ Rules:
 - If a category has no findings, return an empty array.
 - Do not provide a diagnosis.
 - Do not provide treatment instructions.
-- The input may come from FHIR or DICOM/PACS.
-- Use only the supplied healthcare data.
+- Do not assume information that is not present.
+- Treat FHIR/EHR data and DICOM/PACS data as complementary sources.
 - Return JSON only.
 
-Healthcare data:
+Hospital healthcare data:
 
 ${JSON.stringify(
   healthcareData,
@@ -114,14 +291,18 @@ ${JSON.stringify(
     const response =
       await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: analysisPrompt,
+
+        contents:
+          analysisPrompt,
+
         config: {
           responseMimeType:
             "application/json",
         },
       });
 
-    const rawResult = response.text;
+    const rawResult =
+      response.text;
 
     if (!rawResult) {
       return res.status(500).json({
@@ -130,12 +311,11 @@ ${JSON.stringify(
       });
     }
 
-    let analysis;
+    let analysis: any;
 
     try {
-      analysis = JSON.parse(
-        rawResult
-      );
+      analysis =
+        JSON.parse(rawResult);
     } catch {
       return res.status(500).json({
         error:
@@ -143,13 +323,19 @@ ${JSON.stringify(
       });
     }
 
-    // 6. Return healthcare data + AI analysis
+    // 7. Return combined healthcare data + AI analysis
     return res.status(200).json({
       success: true,
       api_version: "v1",
-      source: healthcareData.source,
 
-      data: healthcareData.data,
+      source:
+        healthcareData.source,
+
+      sources:
+        healthcareData.data.metadata.sources,
+
+      data:
+        healthcareData.data,
 
       analysis: {
         summary:
