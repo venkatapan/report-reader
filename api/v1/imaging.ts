@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import formidable from "formidable";
 import fs from "fs";
-import type { HealthcareResponse } from "./healthcare";
+import type { HealthcareResponse } from "../../lib/healthcare";
 
 export const config = {
   api: {
