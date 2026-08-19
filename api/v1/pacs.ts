@@ -5,7 +5,7 @@ import type {
 
 import {
   retrieveInstance,
-} from "../lib/dicomweb.js";
+} from "../../lib/dicomweb.js";
 
 import type {
   HealthcareResponse,
