@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local secrets / credentials
+*.pem
+*.jwk
+private-jwk.json
+smart-private.pem
