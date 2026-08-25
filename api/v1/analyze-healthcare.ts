@@ -23,12 +23,23 @@ export default async function handler(
   req: VercelRequest,
   res: VercelResponse
 ) {
+  const requestId = createRequestId();
+
   try {
     // 1. API authentication
     const authHeader =
       req.headers.authorization;
 
     if (!authHeader) {
+      audit({
+        event: "healthcare_analysis_auth_failed",
+        route: "/api/v1/analyze-healthcare",
+        method: req.method,
+        status: 401,
+        success: false,
+        requestId,
+      });
+
       return res.status(401).json({
         error:
           "Authorization header required",
@@ -44,6 +55,15 @@ export default async function handler(
       token !==
         process.env.AIREPORTREADER_API_KEY
     ) {
+      audit({
+        event: "healthcare_analysis_auth_failed",
+        route: "/api/v1/analyze-healthcare",
+        method: req.method,
+        status: 401,
+        success: false,
+        requestId,
+      });
+
       return res.status(401).json({
         error: "Invalid API key",
       });
@@ -51,6 +71,15 @@ export default async function handler(
 
     // 2. POST only
     if (req.method !== "POST") {
+      audit({
+        event: "healthcare_analysis_invalid_method",
+        route: "/api/v1/analyze-healthcare",
+        method: req.method,
+        status: 405,
+        success: false,
+        requestId,
+      });
+
       return res.status(405).json({
         error: "Method not allowed",
       });
@@ -61,6 +90,15 @@ export default async function handler(
       process.env.API_KEY;
 
     if (!geminiKey) {
+      audit({
+        event: "healthcare_analysis_configuration_error",
+        route: "/api/v1/analyze-healthcare",
+        method: req.method,
+        status: 500,
+        success: false,
+        requestId,
+      });
+
       return res.status(500).json({
         error:
           "Gemini API key missing",
@@ -113,6 +151,15 @@ export default async function handler(
     if (
       healthcareResponses.length === 0
     ) {
+      audit({
+        event: "healthcare_analysis_invalid_input",
+        route: "/api/v1/analyze-healthcare",
+        method: req.method,
+        status: 400,
+        success: false,
+        requestId,
+      });
+
       return res.status(400).json({
         error:
           "Provide a valid HealthcareResponse, FHIR HealthcareResponse, or PACS HealthcareResponse",
@@ -285,6 +332,19 @@ ${JSON.stringify(
       response.text;
 
     if (!rawResult) {
+      audit({
+        event: "healthcare_analysis_empty_ai_response",
+        route: "/api/v1/analyze-healthcare",
+        method: req.method,
+        status: 500,
+        success: false,
+        source:
+          healthcareData.data.metadata.sources.join(
+            ","
+          ),
+        requestId,
+      });
+
       return res.status(500).json({
         error:
           "No analysis returned by AI",
@@ -297,16 +357,46 @@ ${JSON.stringify(
       analysis =
         JSON.parse(rawResult);
     } catch {
+      audit({
+        event: "healthcare_analysis_invalid_ai_json",
+        route: "/api/v1/analyze-healthcare",
+        method: req.method,
+        status: 500,
+        success: false,
+        source:
+          healthcareData.data.metadata.sources.join(
+            ","
+          ),
+        requestId,
+      });
+
       return res.status(500).json({
         error:
           "AI returned an invalid JSON response",
       });
     }
 
-    // 15. Return result
+    // 15. Audit successful analysis
+    audit({
+      event: "healthcare_analysis_completed",
+      route: "/api/v1/analyze-healthcare",
+      method: req.method,
+      status: 200,
+      success: true,
+      source:
+        healthcareData.data.metadata.sources.join(
+          ","
+        ),
+      requestId,
+    });
+
+    // 16. Return result
     return res.status(200).json({
       success: true,
       api_version: "v1",
+
+      request_id:
+        requestId,
 
       source:
         healthcareData.source,
@@ -355,10 +445,20 @@ ${JSON.stringify(
       error
     );
 
+    audit({
+      event: "healthcare_analysis_failed",
+      route: "/api/v1/analyze-healthcare",
+      method: req.method,
+      status: 500,
+      success: false,
+      requestId,
+    });
+
     return res.status(500).json({
       error:
-        error.message ||
-        "Healthcare AI analysis failed",
+        "Internal server error",
+      request_id:
+        requestId,
     });
   }
 }
