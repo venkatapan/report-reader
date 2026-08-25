@@ -8,6 +8,11 @@ import type {
   HealthcareResponse,
 } from "../../lib/healthcare";
 
+import {
+  audit,
+  createRequestId,
+} from "../../lib/audit";
+
 interface HospitalWorkflowInput {
   fhir?: HealthcareResponse;
   pacs?: HealthcareResponse;
