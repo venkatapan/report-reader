@@ -28,3 +28,20 @@ dist-ssr
 *.jwk
 private-jwk.json
 smart-private.pem
+<<<<<<< HEAD
+=======
+
+# Vercel local project state
+.vercel/
+
+# Local test artifacts
+create-test-dicom.cjs
+fhir-test.json
+healthcare-test.json
+hospital-workflow-test.json
+jwt-test.mjs
+pacs-regression.json
+pacs-request.json
+pacs-test.mjs
+synthetic-test.dcm
+>>>>>>> 65a2264 (Harden local secret and test file handling)
