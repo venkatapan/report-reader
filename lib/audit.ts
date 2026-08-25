@@ -6,7 +6,7 @@ export interface AuditEvent {
   method: string;
   status: number;
   success: boolean;
-  source?: string;  
+  source?: string;
   requestId?: string;
 }
 
