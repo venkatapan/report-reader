@@ -1,0 +1,19 @@
+{
+  "resourceType": "Observation",
+  "id": "obs-test-001",
+  "status": "final",
+  "code": {
+    "coding": [
+      {
+        "code": "BP",
+        "display": "Blood Pressure"
+      }
+    ],
+    "text": "Blood Pressure"
+  },
+  "valueQuantity": {
+    "value": 140,
+    "unit": "mmHg"
+  },
+  "effectiveDateTime": "2026-08-20T10:00:00Z"
+}

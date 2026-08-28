@@ -1,0 +1,68 @@
+{
+  "fhir": {
+    "success": true,
+    "api_version": "v1",
+    "source": "FHIR",
+    "data": {
+      "patient": {
+        "id": "P001",
+        "name": "Test Patient",
+        "gender": "male",
+        "date_of_birth": "1990-01-01"
+      },
+      "encounter": {},
+      "clinical": {
+        "diagnosis": ["Hypertension"],
+        "procedures": [],
+        "medications": [],
+        "allergies": []
+      },
+      "observations": [
+        {
+          "code": "BP",
+          "name": "Blood Pressure",
+          "value": "140/90",
+          "unit": "mmHg",
+          "reference_range": "<120/80",
+          "status": "final"
+        }
+      ],
+      "document": {
+        "type": "FHIR Observation",
+        "title": "Blood Pressure",
+        "date": "2026-08-19"
+      },
+      "metadata": {
+        "fhir_resource_type": "Observation"
+      }
+    }
+  },
+  "pacs": {
+    "success": true,
+    "api_version": "v1",
+    "source": "DICOM",
+    "data": {
+      "patient": {
+        "id": "P001",
+        "name": "Test Patient"
+      },
+      "encounter": {},
+      "clinical": {
+        "diagnosis": [],
+        "procedures": [],
+        "medications": [],
+        "allergies": []
+      },
+      "observations": [],
+      "document": {
+        "type": "DICOM",
+        "title": "CT Chest",
+        "date": null
+      },
+      "metadata": {
+        "modality": "CT",
+        "study_description": "CT Chest"
+      }
+    }
+  }
+}

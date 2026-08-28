@@ -1,0 +1,23 @@
+{
+  "success": true,
+  "api_version": "v1",
+  "source": "DICOM",
+  "data": {
+    "patient": {
+      "id": "vAD7q3",
+      "name": "VIX"
+    },
+    "encounter": {},
+    "clinical": {},
+    "observations": [],
+    "document": {
+      "type": "DICOM",
+      "title": "Pied/cheville_UHR (Adulte)",
+      "date": null
+    },
+    "metadata": {
+      "modality": "CT",
+      "study_description": "Extr?mit?s inf?rieures PIED/cheville UHR (Adulte)"
+    }
+  }
+}
