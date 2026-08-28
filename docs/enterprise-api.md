@@ -20,36 +20,3 @@ Example:
 
 ```http
 Authorization: Bearer YOUR_API_KEY
-
-## Canonical Healthcare Contract
-
-AIReportReader uses `HealthcareResponse` as the canonical normalized healthcare data contract across enterprise integrations.
-
-### Supported Sources
-
-The `source` field identifies the healthcare data source:
-
-- HL7
-- FHIR
-- DICOM
-- LAB_REPORT
-- CLINICAL_TEXT
-
-### Response Structure
-
-Every normalized healthcare response follows this structure:
-
-```json
-{
-  "success": true,
-  "api_version": "v1",
-  "source": "FHIR",
-  "data": {
-    "patient": {},
-    "encounter": {},
-    "clinical": {},
-    "observations": [],
-    "document": {},
-    "metadata": {}
-  }
-}
