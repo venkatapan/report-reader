@@ -21,7 +21,7 @@ Example:
 ```http
 Authorization: Bearer YOUR_API_KEY
 
-## **Canonical Healthcare Contract**
+## Canonical Healthcare Contract
 
 AIReportReader uses `HealthcareResponse` as the canonical normalized healthcare data contract across enterprise integrations.
 
