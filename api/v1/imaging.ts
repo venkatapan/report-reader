@@ -197,9 +197,8 @@ export default async function handler(
   } catch (error: any) {
     console.error(error);
 
-    return res.status(500).json({
-      error:
-        error.message || "Internal server error",
-    });
+ return res.status(500).json({
+  error: "Internal server error",
+});
   }
 }
