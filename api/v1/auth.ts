@@ -99,9 +99,8 @@ export default async function handler(
       error
     );
 
-return res.status(502).json({
-  error: "FHIR authentication failed",
-});
-    
+    return res.status(502).json({
+      error: "FHIR authentication failed",
+    });
   }
 }
