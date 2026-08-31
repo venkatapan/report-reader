@@ -102,11 +102,9 @@ export default async function handler(
         error
       );
 
-      return res.status(500).json({
-        error: "DICOM parser could not be loaded",
-        details:
-          error.message || "Parser loading failed",
-      });
+   return res.status(500).json({
+  error: "DICOM parser could not be loaded",
+});
     }
 
     // 7. Parse DICOM file
