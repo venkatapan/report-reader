@@ -122,11 +122,9 @@ export default async function handler(
         error
       );
 
-      return res.status(400).json({
-        error: "DICOM file could not be parsed",
-        details:
-          error.message || "Invalid DICOM data",
-      });
+    return res.status(400).json({
+  error: "DICOM file could not be parsed",
+});
     }
 
     // 8. Extract DICOM metadata
