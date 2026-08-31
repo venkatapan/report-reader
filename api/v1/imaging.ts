@@ -102,9 +102,9 @@ export default async function handler(
         error
       );
 
-   return res.status(500).json({
-  error: "DICOM parser could not be loaded",
-});
+      return res.status(500).json({
+        error: "DICOM parser could not be loaded",
+      });
     }
 
     // 7. Parse DICOM file
@@ -120,9 +120,9 @@ export default async function handler(
         error
       );
 
-    return res.status(400).json({
-  error: "DICOM file could not be parsed",
-});
+      return res.status(400).json({
+        error: "DICOM file could not be parsed",
+      });
     }
 
     // 8. Extract DICOM metadata
@@ -197,8 +197,8 @@ export default async function handler(
   } catch (error: any) {
     console.error(error);
 
- return res.status(500).json({
-  error: "Internal server error",
-});
+    return res.status(500).json({
+      error: "Internal server error",
+    });
   }
 }
