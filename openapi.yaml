@@ -1,0 +1,322 @@
+openapi: 3.0.3
+
+info:
+  title: AI Medical Report Analyzer
+  version: 1.0.0
+  description: >
+    AI-powered medical report analysis API. Submit a medical report as a file
+    or as report text and receive a structured, plain-language AI analysis.
+
+paths:
+  /api/analyze:
+    post:
+      summary: Analyze a medical report
+      description: >
+        Accept a medical report as an uploaded file or plain text and return
+        a structured AI-generated explanation.
+
+      security:
+        - bearerAuth: []
+
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Medical report file such as PDF or image.
+
+                text:
+                  type: string
+                  description: Plain-text medical report content.
+
+              anyOf:
+                - required:
+                    - file
+                - required:
+                    - text
+
+      responses:
+
+        "200":
+          description: Successful medical report analysis.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalysisResponse"
+
+        "400":
+          description: A medical report file or text was not provided.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+        "401":
+          description: Missing or invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+        "405":
+          description: HTTP method not allowed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+        "500":
+          description: Report analysis failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+
+components:
+
+  securitySchemes:
+
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+
+  schemas:
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+
+    AnalysisResponse:
+      type: object
+
+      properties:
+
+        success:
+          type: boolean
+
+        api_version:
+          type: string
+          enum:
+            - v1
+
+        source:
+          type: string
+          enum:
+            - HL7
+            - DICOM
+            - LAB_REPORT
+            - CLINICAL_TEXT
+
+        data:
+          $ref: "#/components/schemas/HealthcareData"
+
+        analysis:
+          $ref: "#/components/schemas/Analysis"
+
+        disclaimer:
+          type: string
+
+      required:
+        - success
+        - api_version
+        - source
+        - data
+        - analysis
+        - disclaimer
+
+
+    HealthcareData:
+      type: object
+
+      properties:
+
+        patient:
+          $ref: "#/components/schemas/Patient"
+
+        encounter:
+          $ref: "#/components/schemas/Encounter"
+
+        clinical:
+          $ref: "#/components/schemas/Clinical"
+
+        observations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Observation"
+
+        document:
+          $ref: "#/components/schemas/Document"
+
+        metadata:
+          type: object
+          additionalProperties: true
+
+      required:
+        - patient
+        - encounter
+        - clinical
+        - observations
+        - document
+        - metadata
+
+
+    Patient:
+      type: object
+
+      properties:
+        id:
+          type: string
+          nullable: true
+
+        name:
+          type: string
+          nullable: true
+
+        date_of_birth:
+          type: string
+          nullable: true
+
+        gender:
+          type: string
+          nullable: true
+
+
+    Encounter:
+      type: object
+
+      properties:
+        id:
+          type: string
+          nullable: true
+
+        type:
+          type: string
+          nullable: true
+
+        date:
+          type: string
+          nullable: true
+
+        location:
+          type: string
+          nullable: true
+
+
+    Clinical:
+      type: object
+
+      properties:
+        diagnosis:
+          type: array
+          items:
+            type: string
+
+        procedures:
+          type: array
+          items:
+            type: string
+
+        medications:
+          type: array
+          items:
+            type: string
+
+        allergies:
+          type: array
+          items:
+            type: string
+
+
+    Observation:
+      type: object
+
+      properties:
+        code:
+          type: string
+          nullable: true
+
+        name:
+          type: string
+          nullable: true
+
+        value:
+          nullable: true
+          oneOf:
+            - type: string
+            - type: number
+
+        unit:
+          type: string
+          nullable: true
+
+        reference_range:
+          type: string
+          nullable: true
+
+        status:
+          type: string
+          nullable: true
+
+
+    Document:
+      type: object
+
+      properties:
+        type:
+          type: string
+          nullable: true
+
+        title:
+          type: string
+          nullable: true
+
+        date:
+          type: string
+          nullable: true
+
+
+    Analysis:
+      type: object
+
+      properties:
+
+        summary:
+          type: string
+
+        normal_findings:
+          type: array
+          items:
+            type: string
+
+        borderline_findings:
+          type: array
+          items:
+            type: string
+
+        abnormal_findings:
+          type: array
+          items:
+            type: string
+
+        what_it_means:
+          type: string
+
+      required:
+        - summary
+        - normal_findings
+        - borderline_findings
+        - abnormal_findings
+        - what_it_means
