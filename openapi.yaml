@@ -3,7 +3,7 @@ openapi: 3.0.3
 info:
   title: AI Medical Report Analyzer
   version: 1.0.0
-  description: >
+  description: > 
     AI-powered medical report analysis API. Submit a medical report as a file
     or as report text and receive a structured, plain-language AI analysis.
 
