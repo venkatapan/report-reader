@@ -15,8 +15,7 @@ paths:
         Accept a medical report as an uploaded file or plain text and return
         a structured AI-generated explanation.
 
-      security:
-        - bearerAuth: []
+  
 
       requestBody:
         required: true
